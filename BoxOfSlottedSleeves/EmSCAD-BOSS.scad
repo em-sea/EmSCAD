@@ -61,16 +61,20 @@ enable_lid_grips = true;
 // Objects per sleeve row
 num_objects = 2;
 // Number of sleeve rows
-num_rows = 3;
-// Values (mm) used if "Custom" is selected - specify depth with Deck presets
-object_preset = "Custom"; // [Nintendo_Switch:"Nintendo Switch (w=21.5, h=32.0,d=4.0, r=0)", GameBoy:"Game Boy (w=57.0, h=65.0, d=8.0, r=1.0)", SD_Card:"SD Card (w=24.2, h=32.2, d=2.1, r=1.0)", Dominion_Deck:"Dominion Deck (w=59.0, h=91.0, d=[custom or 1], r=0)", Pokemon_Deck: "Pokemon Deck (w=63.0, h=88.0, d=[custom or 1], r=0)",CC: "Credit Cards: (w=85.6, h=53.98, d=4, 0)", Custom]
+num_rows = 3; // [1:10]
+// Values below (mm) used if "Custom" is selected
+object_preset = "Custom"; // [Nintendo_Switch:"Nintendo Switch (w=21.5, h=32.0,d=4.0, r=0)", GameBoy:"Game Boy (w=57.0, h=65.0, d=8.0, r=1.0)", SD_Card:"SD Card (w=24.2, h=32.2, d=2.1, r=1.0)", Dominion_Deck:"Dominion Deck (w=59.0, h=91.0, d=4, r=0)", Pokemon_Deck: "Pokemon Deck (w=63.0, h=88.0, d=4, r=0)",CC: "Credit Cards: (w=85.6, h=53.98, d=4, 0)", Custom]
 // width = x
 custom_object_width = 20.0; // 0.1
 // height = z
 custom_object_height = 20.0; // 0.1
-// depth = y, Preset decks still allow modifications to depth 
+// depth = y
 custom_object_depth = 4.0; // 0.1
 custom_object_radius = 1.0; // 0.1
+
+/* [Object Depth By Row] */
+// specify depth row-by-row (0 uses auto-calculated minimum)
+custom_row_depths = "0,0,0,0,0,0,0,0,0,0";
 
 /* [Define the Sleeve(s)] */
 // Percent of object height/z for front display window
@@ -138,22 +142,49 @@ RAD_TOLERANCE = 2.001; // manifold errors are ANNOYING
 MATH_SQRT2_2 = 0.70710678; // Don't repeat cos(45°)/sin(45°)
 
 // Validation & Calculation
-function SafeVal(v) = max(0.01, v);
-function SafeRad(r, w, d) = min(max(r, nozzle_size), w / RAD_TOLERANCE, d / RAD_TOLERANCE);
-function SafeBoxRad(r, w, d) = min(max(r, 0), w / RAD_TOLERANCE, d / RAD_TOLERANCE);
 
 assert(num_objects > 0, "Error: num_objects must be greater than 0");
-assert(num_rows > 0, "Error: num_rows must be greater than 0");
+assert(num_rows > 0 && num_rows <= 10, "Error: num_rows must be between 1 and 10");
 assert(sleeve_thickness > 0, "Error: sleeve_thickness must be greater than 0");
 assert(box_thickness > 0, "Error: box_thickness must be greater than 0");
 assert(nozzle_size > 0, "Error: nozzle_size must be greater than 0");
 
+function SafeVal(v) = max(0.01, v);
+function SafeRad(r, w, d) = min(max(r, nozzle_size), w / RAD_TOLERANCE, d / RAD_TOLERANCE);
+function SafeBoxRad(r, w, d) = min(max(r, 0), w / RAD_TOLERANCE, d / RAD_TOLERANCE);
+
+function Int(s, ret=0, i=0) = 
+    !is_string(s) ? 0 : 
+    (i >= len(s) || i >= 5) ? ret : 
+    Int(s, ret*10 + ord(s[i]) - ord("0"), i+1);
+
+function SubStr(t, begin, end) =
+    let (
+        ed = is_undef(end) ? len(t) : end, cum = [
+    for (i = begin, s = t[i], is_continue = i < ed;is_continue;i = i + 1, is_continue = i < ed, s = is_continue ? str(s, t[i]) : undef)
+      s
+  ])
+    cum[len(cum) - 1];
+
+function SplitTBy(idxs, t) =
+  let (leng = len(idxs))
+    [
+      SubStr(t, 0, idxs[0]),
+      each [
+        for (i = 0;i < leng;i = i + 1)
+          SubStr(t, idxs[i] + 1, idxs[i + 1])
+      ]
+    ];
+
+function SplitStr(t, delimiter) =
+  len(search(delimiter, t)) == 0 ? [t] : SplitTBy(search(delimiter, t, 0)[0], t);
+
 PRESET_DATA = (object_preset == "Nintendo_Switch") ? [21.5, 32.0, 4.0, 0] :
               (object_preset == "GameBoy")         ? [57.0, 65.0, 8.0, 1.0] :
               (object_preset == "SD_Card")         ? [24.2, 32.2, 2.1, 1.0] : 
-              (object_preset == "Dominion_Deck")   ? [59.0, 91.0, max(custom_object_depth, 1.0), 0] :
-              (object_preset == "Pokemon_Deck")    ? [63.0, 88.0, max(custom_object_depth, 1.0), 0] :
-              (object_preset == "CC")              ? [85.6, 53.98, 4, 0] :
+              (object_preset == "Dominion_Deck")   ? [59.0, 91.0, 4.0, 0] :
+              (object_preset == "Pokemon_Deck")    ? [63.0, 88.0, 4.0, 0] :
+              (object_preset == "CC")              ? [85.6, 53.98, 4.0, 0] :
                                                      [custom_object_width, custom_object_height, custom_object_depth, custom_object_radius];
                                                      
 object_width  = PRESET_DATA[0];
@@ -161,8 +192,17 @@ object_height = PRESET_DATA[1];
 object_depth  = PRESET_DATA[2];
 object_radius = PRESET_DATA[3];
 
+function GetObjectDepth(index, delimiter=",", default_val=object_depth, text=custom_row_depths) =
+    let (parts = SplitStr(text, delimiter))
+    (index >= 0 && index < len(parts)) ? Int(parts[index]) : default_val;
+
+function SleeveInnerDepth(r) = SafeVal(GetObjectDepth(r) + object_clearance);
+function SleeveOuterDepth(r) = SleeveInnerDepth(r) + sleeve_thickness + sleeve_front_wall;
+function SleeveTabDepth(r)   = (custom_tab_depth > 0) ? min(custom_tab_depth, SleeveOuterDepth(r)) : max(SleeveOuterDepth(r) / 3, sleeve_thickness * 3);
+function SleeveRadius(r)     = SafeRad(object_radius, object_width, GetObjectDepth(r));
+function BorderMargin(r)     = max(SleeveRadius(r) + sleeve_thickness, sleeve_border_size);
+
 sleeve_inner_width  = SafeVal(object_width + object_clearance);
-sleeve_inner_depth  = SafeVal(object_depth + object_clearance);
 sleeve_inner_height = SafeVal(object_height + object_clearance);
 
 sleeve_label_height = (enable_sleeve_label) ? min(max(sleeve_label_size, sleeve_thickness * 3), object_height + sleeve_thickness) : 0;
@@ -173,28 +213,26 @@ sleeve_pin_radius   = SafeVal(sleeve_label_radius / 2);
 sleeve_front_wall   = (enable_sleeve_label) ? sleeve_thickness * 3 : sleeve_thickness;
 
 sleeve_outer_width  = sleeve_inner_width + 2 * sleeve_thickness;
-sleeve_outer_depth  = sleeve_inner_depth + sleeve_thickness + sleeve_front_wall;
 sleeve_outer_height = sleeve_inner_height + 2 * sleeve_thickness;
 
 box_radius           = (box_corner_radius > 0) ? min(box_corner_radius, box_thickness) : box_thickness;
 object_window_height = min(sleeve_inner_height * object_window_percent / 100, sleeve_inner_height - sleeve_label_height);
-sleeve_radius        = SafeRad(object_radius, object_width, object_depth);
-border_margin        = max(sleeve_radius + sleeve_thickness, sleeve_border_size);
 
-sleeve_tab_width = max(custom_tab_width, sleeve_thickness * 3, object_width / 8);
-sleeve_tab_depth = (custom_tab_depth > 0) ? min(custom_tab_depth, sleeve_outer_depth) : max(sleeve_outer_depth / 3, sleeve_thickness * 3);
-step_up_spacing  = max(sleeve_thickness, (2 * sleeve_tab_depth) + (3 * sleeve_clearance) + nozzle_size + box_thickness + sleeve_thickness - sleeve_outer_depth);
+sleeve_tab_width   = max(custom_tab_width, sleeve_thickness * 3, object_width / 8);
 custom_row_spacing = (minimum_row_spacing > 0) ? minimum_row_spacing : sleeve_thickness;
-sleeve_row_spacing = max(custom_row_spacing, sleeve_clearance + ((enable_step_up_slots==true) ? step_up_spacing : sleeve_thickness));
 
-box_window_height  = max(sleeve_outer_height - object_window_height - border_margin, sleeve_thickness + border_margin);
+function StepUpSpacing(r) = max(sleeve_thickness, (2 * SleeveTabDepth(r)) + (3 * sleeve_clearance) + nozzle_size + box_thickness + sleeve_thickness - SleeveOuterDepth(r));
+function GetRowSpacing(r) = max(custom_row_spacing, sleeve_clearance + ((enable_step_up_slots==true) ? StepUpSpacing(r) : sleeve_thickness));
+
+box_window_height  = max(sleeve_outer_height - object_window_height - BorderMargin(0), sleeve_thickness + BorderMargin(0));
 
 lid_rail_width  = sleeve_thickness * 0.9;
 lid_rail_height = max(sleeve_thickness * 3, (sleeve_outer_height + (lid_clearance * 2) + box_thickness) * 0.15);
 
 row_stagger_height    = (enable_step_up_slots) ? sleeve_outer_height * step_percent / 100 : 0;
 
-function CalcRowY(r, spacing) = (r <= 0) ? 0 : (sleeve_outer_depth + spacing) + (r - 1) * (sleeve_outer_depth + spacing);
+function BaseCalcRowY(r) = (r <= 0) ? 0 : BaseCalcRowY(r - 1) + SleeveOuterDepth(r - 1) + GetRowSpacing(r - 1);
+function SeparatePiecesY(r) = (r <= 0) ? 0 : SeparatePiecesY(r - 1) + SleeveOuterDepth(r - 1) + (sleeve_thickness * 2);
 
 base_step_x           = (sleeve_outer_width - sleeve_thickness) + minimum_sleeve_spacing;
 base_sleeve_row_width = (num_objects > 1) ? ((num_objects - 1) * base_step_x + sleeve_outer_width) : sleeve_outer_width;
@@ -206,7 +244,7 @@ front_sleeve_row_inset = (first_sleeve_row_inset > 0) ? first_sleeve_row_inset :
 back_sleeve_row_inset = (last_sleeve_row_inset > 0) ? last_sleeve_row_inset : sleeve_thickness;
 sleeve_row_insets = front_sleeve_row_inset + back_sleeve_row_inset;
 
-min_box_inner_depth = CalcRowY(num_rows - 1, sleeve_row_spacing) + sleeve_outer_depth + sleeve_row_insets + (sleeve_clearance * 2)+ ((enable_step_up_slots==true) ? sleeve_tab_depth : 0);
+min_box_inner_depth = BaseCalcRowY(num_rows - 1) + SleeveOuterDepth(num_rows - 1) + sleeve_row_insets + (sleeve_clearance * 2) + ((enable_step_up_slots==true) ? SleeveTabDepth(num_rows - 1) : 0);
 min_box_outer_depth = min_box_inner_depth + (2 * box_thickness);
 
 max_stagger_height   = (enable_step_up_slots && num_rows > 2) ? (num_rows - 2) * row_stagger_height : 0;
@@ -218,12 +256,11 @@ box_outer_depth    = max(min_box_outer_depth, custom_box_outer_depth);
 box_outer_height   = max(min_box_outer_height, custom_box_outer_height);
 
 extra_box_depth    = box_outer_depth - min_box_outer_depth;
-actual_row_spacing = sleeve_row_spacing + ((num_rows > 1) ? (extra_box_depth / (num_rows - 1)) : 0);
 
-detent_length   = max(lid_rail_height * 0.6, 3.0);
+function ActualRowSpacing(r) = GetRowSpacing(r) + ((num_rows > 1) ? (extra_box_depth / (num_rows - 1)) : 0);
+function GetRowY(r) = (r <= 0) ? 0 : GetRowY(r - 1) + SleeveOuterDepth(r - 1) + ActualRowSpacing(r - 1);
 
-function GetRowY(r) = CalcRowY(r, actual_row_spacing);
-
+detent_length       = max(lid_rail_height * 0.6, 3.0);
 extra_width         = box_outer_width - min_box_outer_width;
 sleeve_spacing      = (custom_box_outer_width == 0) ? minimum_sleeve_spacing : ((num_objects > 1) ? (extra_width / (num_objects - 1)) : 0);
 step_x              = (sleeve_outer_width - sleeve_thickness) + sleeve_spacing;
@@ -235,6 +272,7 @@ box_inner_width     = box_outer_width - (2 * box_side_thickness);
 detent_setback      = box_thickness + detent_length + box_radius;
 sleeve_row_width    = (num_objects > 1) ? ((num_objects - 1) * step_x + sleeve_outer_width) : sleeve_outer_width;
 box_x_offset        = (render_as_separate_pieces || render_test_versions) ? (sleeve_tab_width + actual_rail_width) * 2 + sleeve_row_width : 0;
+
 
 // 2D Modules
 
@@ -300,31 +338,32 @@ module CutoutGrid2D(width, height, r, spacing) {
     }
 }
 
-module MaskedCutoutGrid2D(width, height, count) {
-    let (safe_border = max(border_margin, sleeve_radius)) {
+module MaskedCutoutGrid2D(width, height, count, row_index) {
+    let (safe_border = max(BorderMargin(row_index), SleeveRadius(row_index))) {
         intersection() {
             CutoutGrid2D(width, height, sleeve_cutout_size, sleeve_cutout_spacing);
             union() {
                 for (i = [0 : count - 1]) {
-                    translate([i * step_x + safe_border, border_margin])
-                        square([SafeVal(sleeve_outer_width - safe_border * 2), SafeVal(height - border_margin * 2)]);
+                    translate([i * step_x + safe_border, BorderMargin(row_index)])
+                        square([SafeVal(sleeve_outer_width - safe_border * 2), SafeVal(height - BorderMargin(row_index) * 2)]);
                 }
             }
         }
     }
 }
 
-module KeepoutRegions2D(height, count) {
+module KeepoutRegions2D(height, count, row_index) {
     let(
         w_h_area = object_window_height > 0,
-        l_h_area = sleeve_label_height > 0
+        l_h_area = sleeve_label_height > 0,
+        b_margin = BorderMargin(row_index)
     ) {
         if (w_h_area || l_h_area) {
             for (i = [0 : count - 1]) {
                 let( x_base = i * step_x ) {
                     if (w_h_area) {
-                        translate([ x_base + sleeve_thickness - border_margin, height - object_window_height - border_margin ])
-                            square([SafeVal(sleeve_inner_width + border_margin * 2), SafeVal(object_window_height + border_margin * 2)]);
+                        translate([ x_base + sleeve_thickness - b_margin, height - object_window_height - b_margin ])
+                            square([SafeVal(sleeve_inner_width + b_margin * 2), SafeVal(object_window_height + b_margin * 2)]);
                     }
                     if (l_h_area) {
                         translate([ x_base + sleeve_thickness - sleeve_border_size, height - object_window_height - sleeve_label_height - sleeve_border_size ])
@@ -336,16 +375,17 @@ module KeepoutRegions2D(height, count) {
     }
 }
 
-module CombinedCutoutMask2D(width, height, count, apply_keepout = true) {
+module CombinedCutoutMask2D(width, height, count, apply_keepout = true, row_index) {
     if (apply_keepout) {
         difference() {
-            MaskedCutoutGrid2D(width, height, count);
-            KeepoutRegions2D(height, count);
+            MaskedCutoutGrid2D(width, height, count, row_index);
+            KeepoutRegions2D(height, count, row_index);
         }
     } else {
-        MaskedCutoutGrid2D(width, height, count);
+        MaskedCutoutGrid2D(width, height, count, row_index);
     }
 }
+
 
 // 3D Modules
 
@@ -381,7 +421,7 @@ module RoundedSleeveBlock(w, d, h, r, count = 1, step = 0, spacing = 0) {
     }
 }
 
-module SingleTab(x_offset, is_right, z_start, z_end, safe_width, safe_depth, xy_off, original_z_off) {
+module SingleTab(x_offset, is_right, z_start, z_end, safe_width, safe_depth, xy_off, original_z_off, tab_depth) {
     let(
         tab_h = z_end - z_start,
         z_off = min(original_z_off, tab_h / 2.01),
@@ -389,35 +429,35 @@ module SingleTab(x_offset, is_right, z_start, z_end, safe_width, safe_depth, xy_
     ) {
         translate([x_offset, 0, z_start])
             hull() {
-                translate([0, 0, z_off]) cube([actual_rail_width + EPSILON, sleeve_tab_depth, safe_tab_h]);
+                translate([0, 0, z_off]) cube([actual_rail_width + EPSILON, tab_depth, safe_tab_h]);
                 translate([is_right ? 0 : xy_off, xy_off, 0]) cube([safe_width, safe_depth, EPSILON]);
                 translate([is_right ? 0 : xy_off, xy_off, tab_h - EPSILON]) cube([safe_width, safe_depth, EPSILON]);
             }
     }
 }
 
-module RailGeometry(x_offset, is_right, safe_height, safe_width, safe_depth, z_off, xy_off, outer_height) {
+module RailGeometry(x_offset, is_right, safe_height, safe_width, safe_depth, z_off, xy_off, outer_height, tab_depth) {
     let(
         segment_h = outer_height / 5,
         tab_bounds = [[0, segment_h], [segment_h * 2, segment_h * 3], [segment_h * 4, outer_height]]
     ) {
         for (bounds = tab_bounds) {
-            SingleTab(x_offset, is_right, bounds[0], bounds[1], safe_width, safe_depth, xy_off, z_off);
+            SingleTab(x_offset, is_right, bounds[0], bounds[1], safe_width, safe_depth, xy_off, z_off, tab_depth);
         }
     }
 }
 
-module DrawDetent(x, z, is_right, is_cutout = false) {
+module DrawDetent(x, z, is_right, is_cutout = false, full_length_track = false) {
     let(
         max_w = lid_rail_width / 2,
         max_h = lid_rail_height / 2,
         max_l = (box_outer_depth - 2 * box_radius) / 2,
         actual_detent_w = max_w * ((is_cutout) || (enable_lid_detent == "strong") ? 1 : 0.5 ),
-        actual_detent_l = min(detent_length, max_l),
+        actual_detent_l = full_length_track ? (box_outer_depth + 2 * EPSILON) : min(detent_length, max_l),
         base_detent_h = SafeVal(lid_rail_height - 2 * lid_rail_width),
         detent_h = min(base_detent_h, max_h),
         
-        detent_y = box_outer_depth - detent_setback,
+        detent_y = full_length_track ? -EPSILON : box_outer_depth - detent_setback,
         detent_z = z - (lid_rail_height / 2) - (detent_h / 2),
         
         base_x = is_right ? (x + lid_rail_width) : (x - lid_rail_width),
@@ -427,10 +467,16 @@ module DrawDetent(x, z, is_right, is_cutout = false) {
             let(
                 c = lid_clearance,
                 start_x = is_right ? (base_x - actual_detent_w - c) : (base_x - EPSILON - c),
-                cut_w = actual_detent_w + c * 2 + EPSILON
+                cut_w = actual_detent_w + c * 2 + EPSILON,
+                taper_x = is_right ? (start_x + cut_w - EPSILON) : start_x
             ) {
-                translate([start_x, detent_y - c, detent_z - c])
-                    cube([SafeVal(cut_w), SafeVal(actual_detent_l + 2 * c), SafeVal(detent_h + 2 * c)]);
+                // Tapered detent pocket (45-degree hull roof extending outward)
+                hull() {
+                    translate([start_x, detent_y - c, detent_z - c])
+                        cube([SafeVal(cut_w), SafeVal(actual_detent_l + 2 * c), SafeVal(detent_h + 2 * c)]);
+                    translate([taper_x, detent_y - c, detent_z - c + detent_h + 2 * c])
+                        cube([EPSILON, SafeVal(actual_detent_l + 2 * c), SafeVal(cut_w)]);
+                }
             }
         } else {
             let(
@@ -449,9 +495,9 @@ module DrawDetent(x, z, is_right, is_cutout = false) {
     }
 }
 
-module DrawPairedDetents(x_left, x_right, z_offset, is_cutout = false) {
-    DrawDetent(x_left, z_offset, false, is_cutout);
-    DrawDetent(x_right, z_offset, true, is_cutout);
+module DrawPairedDetents(x_left, x_right, z_offset, is_cutout = false, full_length_track = false) {
+    DrawDetent(x_left, z_offset, false, is_cutout, full_length_track);
+    DrawDetent(x_right, z_offset, true, is_cutout, full_length_track);
 }
 
 module DrawRail(x, z, is_right, clearance = 0, y_start = undef, length = undef) {
@@ -495,9 +541,9 @@ module LidFlap(x_offset, side_flap_height, down_reach, lid_side_wall, lid_inner_
 
 // Voids
 
-module SleeveSlotCutouts(y_pos, z_pos, h_pos) {
+module SleeveSlotCutouts(y_pos, z_pos, h_pos, row) {
     let(
-        cut_size = [actual_rail_width + sleeve_clearance * 2 + EPSILON, sleeve_tab_depth + sleeve_clearance * 2, h_pos],
+        cut_size = [actual_rail_width + sleeve_clearance * 2 + EPSILON, SleeveTabDepth(row) + sleeve_clearance * 2, h_pos],
         rail_x = [box_side_thickness - actual_rail_width - sleeve_clearance, box_side_thickness + box_inner_width - EPSILON]
     ) {
         for (x = rail_x) {
@@ -527,11 +573,11 @@ module SupportFreePocket(w, d, h) {
 
 module SleeveSlotIndents(y_pos, z_pos, row) {
     let (
-        indent_y = y_pos + sleeve_tab_depth,
+        indent_y = y_pos + SleeveTabDepth(row),
         segment_h = sleeve_outer_height / 5,
         stagger_z = row * row_stagger_height,
         indent_z_levels = [z_pos + stagger_z, z_pos + segment_h * 2 + stagger_z, z_pos + segment_h * 4 + stagger_z],
-        indent_depth = sleeve_tab_depth + sleeve_clearance * 2,
+        indent_depth = SleeveTabDepth(row) + sleeve_clearance * 2,
         pocket_w = actual_rail_width + sleeve_clearance * 2 + EPSILON,
         rail_x = [box_side_thickness - actual_rail_width - sleeve_clearance, box_side_thickness + box_inner_width - EPSILON]
     ) {
@@ -544,15 +590,19 @@ module SleeveSlotIndents(y_pos, z_pos, row) {
     }
 }
 
-module ObjectSleeveCavity() {
-    let(front_offset = sleeve_front_wall - sleeve_thickness) {
+module ObjectSleeveCavity(row_index) {
+    let(
+        front_offset = sleeve_front_wall - sleeve_thickness,
+        local_inner_depth = SleeveInnerDepth(row_index),
+        local_radius = SleeveRadius(row_index)
+    ) {
         union() {
             translate([sleeve_thickness, sleeve_thickness + front_offset, sleeve_thickness])
-                RoundedBox(sleeve_inner_width, sleeve_inner_depth, sleeve_outer_height + EPSILON, sleeve_radius);
+                RoundedBox(sleeve_inner_width, local_inner_depth, sleeve_outer_height + EPSILON, local_radius);
                 
             if (object_window_height > 0) {
                 translate([sleeve_thickness, -EPSILON, sleeve_outer_height - object_window_height])
-                    cube([sleeve_inner_width, SafeVal(object_depth / 2 + sleeve_thickness + front_offset), object_window_height + EPSILON * 2]);
+                    cube([sleeve_inner_width, SafeVal(GetObjectDepth(row_index) / 2 + sleeve_thickness + front_offset), object_window_height + EPSILON * 2]);
             }
 
             if (enable_sleeve_label) {
@@ -577,40 +627,42 @@ module ObjectSleeveCavity() {
 
 // The Things
 
-module SleeveRow(count = num_objects) {
+module SleeveRow(count = num_objects, row_index = 0) {
     let(
+        local_outer_depth = SleeveOuterDepth(row_index),
+        local_tab_depth = SleeveTabDepth(row_index),
         local_total_width = (count > 1) ? ((count - 1) * step_x + sleeve_outer_width) : sleeve_outer_width,
         z_off = min(1.0, sleeve_outer_height / 4),
-        xy_off = min(0.5, sleeve_tab_depth / 4, actual_rail_width / 4),
+        xy_off = min(0.5, local_tab_depth / 4, actual_rail_width / 4),
         safe_height = SafeVal(sleeve_outer_height - 2 * z_off),
         safe_width = SafeVal(actual_rail_width + EPSILON - xy_off),
-        safe_depth = SafeVal(sleeve_tab_depth - 2 * xy_off)
+        safe_depth = SafeVal(local_tab_depth - 2 * xy_off)
     ) {
         render(convexity = 6)
         difference() {
             union() {
                 difference() {
-                    RoundedSleeveBlock(sleeve_outer_width, sleeve_outer_depth, sleeve_outer_height, box_radius, count, step_x, sleeve_spacing);
+                    RoundedSleeveBlock(sleeve_outer_width, local_outer_depth, sleeve_outer_height, box_radius, count, step_x, sleeve_spacing);
                     union() {
                         for (i = [0 : count - 1]) {
-                            translate([i * step_x, 0, 0]) ObjectSleeveCavity();
+                            translate([i * step_x, 0, 0]) ObjectSleeveCavity(row_index);
                         }
                         if (enable_sleeve_cutout && sleeve_cutout_size > 0.01) {
                             translate([0, sleeve_front_wall + EPSILON, 0])
                                 rotate([90, 0, 0])
                                 linear_extrude(height = sleeve_front_wall + 2 * EPSILON)
-                                CombinedCutoutMask2D(local_total_width, sleeve_outer_height, count, true);
+                                CombinedCutoutMask2D(local_total_width, sleeve_outer_height, count, true, row_index);
 
-                            translate([0, sleeve_outer_depth + EPSILON, 0])
+                            translate([0, local_outer_depth + EPSILON, 0])
                                 rotate([90, 0, 0])
                                 linear_extrude(height = sleeve_thickness + 2 * EPSILON)
-                                CombinedCutoutMask2D(local_total_width, sleeve_outer_height, count, false);
+                                CombinedCutoutMask2D(local_total_width, sleeve_outer_height, count, false, row_index);
                         }
                     }
                 }
 
-                RailGeometry(-actual_rail_width, false, safe_height, safe_width, safe_depth, z_off, xy_off, sleeve_outer_height);
-                RailGeometry(local_total_width - EPSILON, true, safe_height, safe_width, safe_depth, z_off, xy_off, sleeve_outer_height);
+                RailGeometry(-actual_rail_width, false, safe_height, safe_width, safe_depth, z_off, xy_off, sleeve_outer_height, local_tab_depth);
+                RailGeometry(local_total_width - EPSILON, true, safe_height, safe_width, safe_depth, z_off, xy_off, sleeve_outer_height, local_tab_depth);
             }
         }
     }
@@ -627,7 +679,7 @@ module BoxCutout() {
         
     for (r = [0 : num_rows - 1]) {
         let (y_offset = box_thickness + front_sleeve_row_inset + sleeve_clearance + GetRowY(r)) {
-            SleeveSlotCutouts(y_offset - sleeve_clearance, box_thickness - EPSILON, box_inner_height + 2 * EPSILON);
+            SleeveSlotCutouts(y_offset - sleeve_clearance, box_thickness - EPSILON, box_inner_height + 2 * EPSILON, r);
             
             if (enable_step_up_slots && r > 0) {
                 SleeveSlotIndents(y_offset - sleeve_clearance+nozzle_size, box_thickness - EPSILON, r);
@@ -655,7 +707,10 @@ module StorageBox() {
             BoxCutout();
             
             if (enable_lid_rails) {
+                // Top rail cutout (standard detent pocket)
                 DrawPairedDetents(EPSILON, box_outer_width - EPSILON, box_outer_height, is_cutout = true);
+                // Bottom rail cutout (full length slide track)
+                DrawPairedDetents(EPSILON, box_outer_width - EPSILON, lid_rail_height, is_cutout = true, full_length_track = true);
             }
         }
     }
@@ -723,20 +778,20 @@ module SlideOnLid() {
                     }
 
                     if (down_reach > 0.01) {
-                        if (sleeve_spacing > sleeve_radius) {
+                        if (sleeve_spacing > sleeve_thickness) {
                             for (i = [0 : num_objects - 1]) {
                                 let(
                                     strut_width = SafeVal(sleeve_outer_width - lid_clearance * 2),
                                     strut_x = box_side_thickness + i * step_x + lid_clearance
                                 ) translate([strut_x, -box_thickness / 2, -down_reach + lid_clearance])
-                                    RoundedBox(strut_width, box_inner_depth + box_thickness / 2, down_reach - lid_clearance + EPSILON, sleeve_radius);
+                                    RoundedBox(strut_width, box_inner_depth + box_thickness / 2, down_reach - lid_clearance + EPSILON, sleeve_thickness);
                             }
                         } else {
                             let(
                                 strut_width = SafeVal(box_inner_width - lid_clearance * 2),
                                 strut_x = box_side_thickness + lid_clearance
                             ) translate([strut_x, -box_thickness / 2, -down_reach + lid_clearance])
-                                RoundedBox(strut_width, box_inner_depth + box_thickness / 2, down_reach - lid_clearance + EPSILON, sleeve_radius);
+                                RoundedBox(strut_width, box_inner_depth + box_thickness / 2, down_reach - lid_clearance + EPSILON, sleeve_thickness);
                         }
                     }
                 }
@@ -786,20 +841,20 @@ if (render_sleeve_rows) {
             let(
                 in_secondary = (enable_step_up_slots && row > 0),
                 active_y = render_as_separate_pieces ? 
-                    (row * (sleeve_thickness * 2 + sleeve_outer_depth)):
-                    (box_thickness + front_sleeve_row_inset + sleeve_clearance + GetRowY(row))+(in_secondary?sleeve_tab_depth*1.5:0),
+                    SeparatePiecesY(row) :
+                    (box_thickness + front_sleeve_row_inset + sleeve_clearance + GetRowY(row))+(in_secondary?SleeveTabDepth(row)*1.5:0),
                 active_z = (render_test_versions) ? 0 : render_as_separate_pieces ? 0 : (box_thickness + (in_secondary ? (row * row_stagger_height) : 0)),
                 active_x = (render_test_versions) ? box_side_thickness : render_as_separate_pieces ? box_side_thickness : (box_x_offset + box_side_thickness)
             ) {
                 translate([active_x, active_y, active_z]) {
                     difference() {
                         color(c = [(row / num_rows), (row / num_rows), 0.8], alpha = (render_as_separate_pieces) ? 1.0 : 1.0 - (row / num_rows))
-                            SleeveRow();
+                            SleeveRow(num_objects, row);
                         if (render_test_versions) {
-                            translate([-base_sleeve_row_width / 2, -sleeve_outer_depth / 2, -object_window_height - max(sleeve_thickness * 2, sleeve_label_height)]) 
-                                cube([base_sleeve_row_width * 2, sleeve_outer_depth * 2, sleeve_outer_height]);
-                            translate([-base_sleeve_row_width / 2, -sleeve_outer_depth / 2, sleeve_outer_height - object_window_height + sleeve_thickness]) 
-                                cube([base_sleeve_row_width * 2, sleeve_outer_depth * 2, sleeve_outer_height]);
+                            translate([-base_sleeve_row_width / 2, -SleeveOuterDepth(row) / 2, -object_window_height - max(sleeve_thickness * 2, sleeve_label_height)]) 
+                                cube([base_sleeve_row_width * 2, SleeveOuterDepth(row) * 2, sleeve_outer_height]);
+                            translate([-base_sleeve_row_width / 2, -SleeveOuterDepth(row) / 2, sleeve_outer_height - object_window_height + sleeve_thickness]) 
+                                cube([base_sleeve_row_width * 2, SleeveOuterDepth(row) * 2, sleeve_outer_height]);
                         }
                     }
                 }

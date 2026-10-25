@@ -1,38 +1,38 @@
 Em-Sea Style Guide
-Last Updated: 2026-08-05
+Last Updated: 2026-10-25
 
 ## 1. Principles
-* **DRY:** Pull duplicate logic (loops, regex, complicated bits) into reusable functions.
-* **Tight scope:** Keep variables as local as possible but don't nest functions.
-* **Handle errors:** Catch or bubble up errors.
-* **Single responsibility:** Keep functions small and focused on one job.
-* **Tidy:** Comment out unused variables for later cleanup.
-* **Don't reinvent the wheel:** Use standard libraries (BOSL2, gridfinity_extended_openscad) when reasonable.
 
----
+- **DRY:** Pull duplicate logic (loops, regex, complicated bits) into reusable functions.
+- **Single Responsibility:** Keep functions focused on a single task.
+- **Handle Errors:** Catch or bubble up internal errors while allowing users to make ridiculous configurations.
+- **Tidy:** Comment out unused variables during testing and delete later.
 
-## 2. Naming/Style
-* **Variables/Arrays/Hashes:** snake_case
-* **Constants:** UPPER_SNAKE_CASE
-* **Functions/Modules/Classes:** CamelCase
-* **Indentation:** Use 4 spaces, not tabs.
-* **Oxford Commas:** Use them.
+## 2. Naming and Formatting
 
----
+- **Variables, Arrays, and Hashes:** `snake_case`
+- **Constants:** `UPPER_SNAKE_CASE`
+- **Functions, Modules, and Classes:** `CamelCase`
+- **Indentation:** 4 spaces (no tabs)
+- **Punctuation:** Oxford commas
+- **Spacing:** Minimal newlines between functions and logic shifts
 
 ## 3. Documentation
-* **Metadata:** Check that the file's top metadata stays accurate and includes:
-	Script Name: 
-	Description: 
-	Language:
-	Output:
-	Glossary:
-* **User Documentation:** Keep detailed, user-facing customization comments up to date.
-* **Code Documentation:** Only add inline comments for logic that's actually tricky, unfinished, or annoying.
 
----
+- **File Header:** *(Remember to update after major changes)*
+  - Script Name:
+  - Description:
+- **As Needed File Headers:** *(When non-obvious)*
+  - Language:
+  - Output:
+  - Glossary:
+  - License:
+  - Sources:
+- **User Documentation:** Use precise user-facing instructions, options, and constraints.
+- **Code Documentation:** Limit comments to explaining tricky logic, grouping major functionality, and tracking in-progress modifications.
 
-## 4. 3D Printing/CAD
-* **Tolerances:** Use clearance variables for parts that slide/connect.
-* **Manifold Geometry:** Fix non-manifold edges and use the `EPSILON = 0.02` when cutting/connecting to avoid Z-fighting and zero-thickness walls.
-* **Safe Rounding:** Bound radii and hull coordinates [e.g min()/max(0.01, ...)] so that extreme dimensions don't break things.
+## 4. 3D Printing and CAD
+
+- **Tolerances:** Use dedicated clearance variables for sliding and attaching parts.
+- **Manifold Geometry:** Use `EPSILON = 0.02`.
+- **Safe Rounding:** Bind radii to prevent broken geometry (e.g., `max(0.01, ...)`).

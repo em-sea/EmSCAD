@@ -1,12 +1,13 @@
-Em-Sea Style Guide
+# em-sea Style Guide
+
 Last Updated: 2026-10-25
 
 ## 1. Principles
 
 - **DRY:** Pull duplicate logic (loops, regex, complicated bits) into reusable functions.
-- **Single Responsibility:** Keep functions focused on a single task.
+- **Single Responsibility:** Keep each function focused on a single task.
 - **Handle Errors:** Catch or bubble up internal errors while allowing users to make ridiculous configurations.
-- **Tidy:** Comment out unused variables during testing and delete later.
+- **Tidy:** Comment out unused variables during testing and delete them later.
 
 ## 2. Naming and Formatting
 
@@ -22,12 +23,14 @@ Last Updated: 2026-10-25
 - **File Header:** *(Remember to update after major changes)*
   - Script Name:
   - Description:
-- **As Needed File Headers:** *(When non-obvious)*
+  - Repository: https://github.com/em-sea/EmSCAD/
+  - Copyright (C) *(year)* em-sea
+  - SPDX-License-Identifier: GPL-3.0-or-later
+- **As-Needed File Headers:** *(When non-obvious)*
   - Language:
   - Output:
   - Glossary:
-  - License:
-  - Sources:
+  - Inspiration:
 - **User Documentation:** Use precise user-facing instructions, options, and constraints.
 - **Code Documentation:** Limit comments to explaining tricky logic, grouping major functionality, and tracking in-progress modifications.
 

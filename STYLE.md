@@ -8,6 +8,7 @@ Last Updated: 2026-10-25
 - **Single Responsibility:** Keep each function focused on a single task.
 - **Handle Errors:** Catch or bubble up internal errors while allowing users to make ridiculous configurations.
 - **Tidy:** Comment out unused variables during testing and delete them later.
+- **Preview:** Use $preview to generate planning layouts.
 
 ## 2. Naming and Formatting
 
@@ -32,7 +33,7 @@ Last Updated: 2026-10-25
   - Glossary:
   - Inspiration:
 - **User Documentation:** Use precise user-facing instructions, options, and constraints.
-- **Code Documentation:** Limit comments to explaining tricky logic, grouping major functionality, and tracking in-progress modifications.
+- **Code Documentation:** Limit comments to explaining tricky logic, grouping major functionality, and tracking in-progress modifications. Use distinct colors for different geometries within the model.
 
 ## 4. 3D Printing and CAD
 

@@ -1,9 +1,10 @@
-// Script Name: EmSCAD Annulus Stencil
-// Description: A customizable annulus stencil with upper and lower curved and optional side icons.
-// Repository: https://github.com/em-sea/EmSCAD/
-// Copyright (C) 2026 em-sea
-// SPDX-License-Identifier: GPL-3.0-or-later
-
+/*
+Script Name: EmSCAD Annulus Stencil
+Description: A customizable annulus stencil with upper and lower curved and optional side icons.
+Repository: https://github.com/em-sea/EmSCAD/
+Copyright (C) 2026 em-sea
+SPDX-License-Identifier: GPL-3.0-or-later
+*/
 
 /* [Text] */
 top_text = "NO FOOD";

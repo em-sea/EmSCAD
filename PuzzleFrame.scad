@@ -171,15 +171,17 @@ module CornerSegment() {
         difference() {
             translate([0, frame_core_y_inset + frame_core_depth, 0])
                 rotate([90, 0, 0])
-                    linear_extrude(height = frame_core_depth - corner_support_inset)
+                    linear_extrude(height = frame_core_depth)
                         polygon([
                             [back_frame_height, back_frame_height + frame_segment_clearance],
                             [back_frame_height + corner_arm_length, back_frame_height + frame_segment_clearance],
                             [back_frame_height, back_frame_height + corner_arm_length]
                         ]);
-            translate([back_frame_height + cutout_distance, -EPSILON, back_frame_height + cutout_distance])
+            translate([back_frame_height + cutout_distance, frame_core_y_inset - EPSILON, back_frame_height + cutout_distance]) {
                 rotate([-90, 0, 0])
                     cylinder(h = frame_thickness + EPSILON * 2, d = corner_support_cutout, $fn = corner_support_sides);
+                cube([corner_arm_length, corner_support_inset, corner_arm_length]);
+            }
         }
     }
     StraightSegment(
